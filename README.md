@@ -1,1 +1,1 @@
-### 💬 Blog Dapp with Polygon
+# 💬 Blog Dapp with Polygon
