@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "./BloggyToken.sol";
 
@@ -11,19 +11,22 @@ contract BloggingApp {
         string content;
         uint256 timestamp;
         uint256 views;
-        uint256 paymentReceived;
-        mapping(address => bool) likes;
-        mapping(address => bool) donationsReceived;
+        bool paymentRecieved;
+        uint256 paymentAmount;
+        uint256 likes;
     }
+
+
     
     address payable public owner;
     BloggyToken public bloggyToken;
     mapping(address => bool) public admins;
-    mapping(uint256 => BlogPost) public blogPosts;
+    mapping(uint => BlogPost) public blogPosts;
+    mapping(uint256 => mapping(address => bool)) public postLikes;
     uint256 public numBlogPosts = 0;
     uint256 public minPayment = 0.01 ether;
 
-    event NewBlogPost(uint256 indexed postId, address indexed author, string title, string content );
+    event NewBlogPost(uint256 indexed postId, address indexed author, string title, string content, uint256 timestamp, uint256 likes, uint256 views);
     event BlogPostLiked(uint256 indexed postId, address indexed liker);
     event BlogPostDonated(uint256 indexed postId, address indexed donor, uint256 amount);
 
@@ -57,25 +60,17 @@ contract BloggingApp {
 
     function publishPost(string memory title, string memory content) public {
         require(bytes(title).length > 0 && bytes(content).length > 0, "Title and content must not be empty");
-
-        blogPosts[numBlogPosts] = BlogPost({
-            author: msg.sender,
-            title: title,
-            content: content,
-            timestamp: block.timestamp,
-            views: 0,
-            paymentReceived: 0
-        });
-
-        emit NewBlogPost(numBlogPosts, msg.sender, title, content); 
         numBlogPosts++;
+        blogPosts[numBlogPosts] = BlogPost(msg.sender, title, content, block.timestamp, 0, false, 0,0);
+        emit NewBlogPost(numBlogPosts, msg.sender, title, content, block.timestamp, 0,0); 
+        
     } 
 
     function likePost(uint256 postId) public {
         require(postId < numBlogPosts, "Post does not exist");
-        require(!blogPosts[postId].likes[msg.sender],"POst already liked by this address");
+        require(!postLikes[postId][msg.sender],"POst already liked by this address");
 
-        blogPosts[postId].likes[msg.sender] = true;
+        postLikes[postId][msg.sender] = true;
         bloggyToken.awardTokens(postId);
         emit BlogPostLiked(postId, msg.sender);
     }
@@ -83,18 +78,18 @@ contract BloggingApp {
     function donate(uint256 postId) public payable {
         require(postId < numBlogPosts,"Post does not exist");
         require(msg.value >= minPayment, "Donation amount must be at least 0.01");
-        require(!blogPosts[postId].donationsReceived[msg.sender], "Donation already received from this address");
+        require(blogPosts[postId].paymentRecieved == false, "Donation already received from this address");
         
-        blogPosts[postId].donationsReceived[msg.sender] = true; 
-        blogPosts[postId].paymentReceived += msg.value; 
+        blogPosts[postId].paymentRecieved = true; 
+        blogPosts[postId].paymentAmount += msg.value; 
         emit BlogPostDonated(postId, msg.sender,msg.value);
     }
 
-    function withdraw() public onlyOnwer {
+    function withdraw() public onlyOwner {
         owner.transfer(address(this).balance);
     }
 
-    functino widthdrawTokens() public onlyOwner {
+    function widthdrawTokens() public onlyOwner {
         bloggyToken.transfer(owner, bloggyToken.balanceOf(address(this)));
     }
 }
