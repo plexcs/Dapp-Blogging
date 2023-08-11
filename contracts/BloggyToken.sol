@@ -18,6 +18,10 @@ contract BloggyToken is ERC20 {
         viewThreshold = _viewThreshold;
     }
 
+    // sending one token one time, 
+    // 4 token in 4 times? 
+    // bad for gas
+
     function awardTokens(uint256 postId) public {
         require(hasViewed[msg.sender][postId],"Blogger has not received any token award");
         require(!hasReachedViewThreshold(msg.sender, postId),"Blogger has already received tokens for this blog post");
